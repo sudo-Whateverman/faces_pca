@@ -1,5 +1,4 @@
-from PIL import Image
-import PIL
+from PIL import Image, ImageOps
 import numpy
 
 
@@ -20,13 +19,19 @@ def reconstruct_and_save(data_arr_, scaling=True, scaling_factor=.1, name_of_fil
     im_.save(name_of_file)
 
 
-def save_eigenface_images_to_disk():
+def save_eigenface_images_to_disk(scaling, scaling_factor):
     eigenfaces_array = numpy.loadtxt("eigen_faces.csv", delimiter=',')
 
     for index, face in enumerate(eigenfaces_array):
-        reconstruct_and_save(eigenfaces_array[index], scaling=False, name_of_file="eigenface" + str(index) + ".jpeg")
+        reconstruct_and_save(eigenfaces_array[index], scaling=scaling, scaling_factor=scaling_factor,
+                             name_of_file="eigenface" + str(index) + ".jpeg")
 
 
-def eigen_face_construct_from_subsamples(image, namefile):
-    PIL.ImageOps.autocontrast(image, cutoff=0, ignore=None)
-    Image.save(namefile)
+def reconstruct_with_normalization(image, scaling=True, scaling_factor=.1, name_of_file="temp"):
+    # reconstruct from array
+    if scaling:
+        im_ = Image.fromarray(numpy.uint8(image.reshape((int(200 * scaling_factor), int(180 * scaling_factor)))))
+    else:
+        im_ = Image.fromarray(numpy.uint8(image.reshape(200, 180)))
+    im_ = ImageOps.autocontrast(im_, cutoff=0, ignore=None)
+    im_.save(name_of_file)

@@ -3,27 +3,22 @@ import os
 import pickle
 import sys
 import numpy
-from numpy import linalg
+from scipy.sparse import linalg
+
 from numpy.ma import array
-from image_handler import load_data
+from image_handler import load_data, reconstruct_with_normalization
+import scipy.linalg.blas
 
 
-def eigen_face_construct(n_dim):
+def eigen_face_construct(n_dim, scaling, scale):
     eigen_vectors = numpy.loadtxt("eigenvectors.csv", delimiter=',')
-    # means = numpy.loadtxt("means.csv", delimiter=",")
-    eigen_faces = []
-    with open("files.txt", "rb") as fp:  # Unpickling
-        eigen_files = pickle.load(fp)
-    for i in range(n_dim):
+    for index in range(n_dim):
         try:
-            reconstruction = numpy.zeros(36000)
-            for index, item in enumerate(eigen_vectors[i]):
-                reconstruction = reconstruction + item * load_data(eigen_files[index], scaling=False)
-            reconstruction = array(reconstruction, copy=False, subok=True, ndmin=2).T
-            eigen_faces.append(reconstruction)
+            name_ = str(index) + "th eigenface.jpeg"
+            reconstruct_with_normalization(eigen_vectors[index],
+                                                 scaling=scaling, scaling_factor=scale, name_of_file=name_)
         except IndexError:
-            logging.warning("[" + str(i) + "] index of reconstruction is greater than dimension of eigenvectors")
-    numpy.savetxt("eigen_faces.csv", eigen_faces, delimiter=",")
+            logging.warning("[" + str(index) + "] index of reconstruction is greater than dimension of eigenvectors")
 
 
 def traverse_faces(rootdir_, scaling, scaling_factor):
@@ -47,18 +42,17 @@ def traverse_faces(rootdir_, scaling, scaling_factor):
 
 def create_covariance_matrix(rootdir_, scale_, r_):
     mat, means, files = traverse_faces(rootdir_, scaling=scale_, scaling_factor=r_)
-    cov = numpy.cov(mat)
-    w, v = linalg.eigh(cov)  # since the covariance matrix is symmetrical and hermitian, only real values will be given
-    # sort eigenvalues and vectors
-    idx = w.argsort()[::-1]
-    w = w[idx]
-    v = v[:, idx]
+    # cov = numpy.cov(mat)
+    cov = scipy.linalg.blas.dgemm(alpha=1.0, a=mat, b=mat, trans_b=True)
+    cov /= len(means)
+    # THIS IS IMPORTANT!!!
+    w, v = scipy.sparse.linalg.eigsh(cov, 200)  # we take first 100 biggest eigvalues with Lanczos algorithm
     # save artifacts
     numpy.savetxt("matrix.csv", mat, delimiter=",")
     numpy.savetxt("covariance.csv", cov, delimiter=",")
     numpy.savetxt("means.csv", means, delimiter=",")
     numpy.savetxt("eigenvalues.csv", w, delimiter=",")
-    numpy.savetxt("eigenvectors.csv", v, delimiter=",")
+    numpy.savetxt("eigenvectors.csv", v.T, delimiter=",")
     with open("files.txt", "wb") as fp:  # Pickling
         pickle.dump(files, fp)
         logging.debug(files)
@@ -66,3 +60,31 @@ def create_covariance_matrix(rootdir_, scale_, r_):
     logging.debug("mat size is :")
     logging.debug(sys.getsizeof(mat))
     logging.debug("Covariance matrix created!")
+    logging.debug(cov.shape)
+    logging.debug("eigen values are :")
+    logging.debug(w.shape)
+    logging.debug("eigen vectors shape is:")
+    logging.debug(v.shape)
+
+    sum_ = 0
+    for index, item in enumerate(w):
+        sum_ = sum_ + item
+        if sum_ * 1.0 / w.sum() > 0.95:
+            logging.debug("effective size of human face PCA is :")
+            logging.debug(index)
+            return index
+
+    raise Exception('Too few vectors taken add more degrees')
+
+
+def reconstruct_to_n_degrees(degree_of_reconstruct, index_of_image_to_reconstruct,
+                             scaling=False, scaling_factor=0.5):
+    with open("files.txt", "rb") as fp:  # Unpickling
+        eigen_files = pickle.load(fp)
+    eigen_vectors = numpy.loadtxt("eigenvectors.csv", delimiter=',')
+    means = numpy.loadtxt("means.csv", delimiter=',')
+    original_im = load_data(eigen_files[index_of_image_to_reconstruct], scaling, scaling_factor)
+    reconstruction = numpy.zeros(int(36000 * scaling_factor ** 2))
+    for i in range(degree_of_reconstruct):
+        reconstruction = reconstruction + numpy.multiply(eigen_vectors[i], original_im) * eigen_vectors[i]
+    return reconstruction + means[index_of_image_to_reconstruct]
