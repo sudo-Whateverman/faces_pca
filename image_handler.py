@@ -19,10 +19,10 @@ def reconstruct_and_save(data_arr_, scaling=True, scaling_factor=.1, name_of_fil
     im_.save(name_of_file)
 
 
-def save_eigenface_images_to_disk(scaling, scaling_factor):
-    eigenfaces_array = numpy.loadtxt("eigen_faces.csv", delimiter=',')
+def save_eigenface_images_to_disk(effective_dim, scaling, scaling_factor):
+    eigenfaces_array = numpy.loadtxt("eigenvectors.csv", delimiter=',')
 
-    for index, face in enumerate(eigenfaces_array):
+    for index in range(effective_dim):
         reconstruct_and_save(eigenfaces_array[index], scaling=scaling, scaling_factor=scaling_factor,
                              name_of_file="eigenface" + str(index) + ".jpeg")
 

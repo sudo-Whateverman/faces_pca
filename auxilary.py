@@ -31,7 +31,7 @@ def traverse_faces(rootdir_, scaling, scaling_factor):
                 im_array = load_data(os.path.join(dirName, fname), scaling, scaling_factor)
                 filenames.append(os.path.join(dirName, fname))
                 means.append(im_array.mean())
-                im_array = im_array - im_array.mean()  # center the data around 0 TODO: normalize here
+                im_array = im_array - im_array.mean()  # center the data around 0
                 if im_array.ndim < 2:
                     im_array = array(im_array, copy=False, subok=True, ndmin=2).T
                     arrays.append(im_array)
@@ -46,7 +46,14 @@ def create_covariance_matrix(rootdir_, scale_, r_):
     cov = scipy.linalg.blas.dgemm(alpha=1.0, a=mat, b=mat, trans_b=True)
     cov /= len(means)
     # THIS IS IMPORTANT!!!
-    w, v = scipy.sparse.linalg.eigsh(cov, 200)  # we take first 100 biggest eigvalues with Lanczos algorithm
+    w, v = scipy.sparse.linalg.eigsh(cov, 100)  # we take first 100 biggest eigvalues with Lanczos algorithm
+
+    # DO NOT DELETE THIS LINE!!!!
+    idx = w.argsort()[::-1]
+    w = w[idx]
+    v = v[:, idx]
+    # DO NOT DELETE THIS LINE!!!!
+
     # save artifacts
     numpy.savetxt("matrix.csv", mat, delimiter=",")
     numpy.savetxt("covariance.csv", cov, delimiter=",")
