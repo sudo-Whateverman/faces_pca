@@ -1,7 +1,7 @@
 import logging
 
-from auxilary import reconstruct_to_n_degrees, create_covariance_matrix
-from image_handler import reconstruct_with_normalization, save_eigenface_images_to_disk
+from auxilary import reconstruct_to_n_degrees, create_covariance_matrix, eigen_face_construct
+from image_handler import reconstruct_with_normalization, load_data
 
 if __name__ == '__main__':
     # Setup
@@ -18,7 +18,9 @@ if __name__ == '__main__':
     effective_dim = 10
     effective_dim = create_covariance_matrix(rootdir, scale, r)
     m = 0
-    save_eigenface_images_to_disk(effective_dim, scaling=scale, scaling_factor=r)
+    m_ = load_data('lfso.1.jpg', scaling=True, scaling_factor=r)
+    reconstruct_with_normalization(m_, scaling=True, scaling_factor=r, name_of_file="temp.jpg")
+    eigen_face_construct(effective_dim, scaling=scale, scaling_factor=r)
     im = reconstruct_to_n_degrees(effective_dim, m, scaling=scale, scaling_factor=r)
     reconstruct_with_normalization(im, scaling=scale, scaling_factor=r,
                                    name_of_file=str(m) + "th_photo_from_" + str(effective_dim) + "_eigenfaces.jpeg")

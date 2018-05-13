@@ -10,13 +10,13 @@ from image_handler import load_data, reconstruct_with_normalization
 import scipy.linalg.blas
 
 
-def eigen_face_construct(n_dim, scaling, scale):
+def eigen_face_construct(n_dim, scaling, scaling_factor):
     eigen_vectors = numpy.loadtxt("eigenvectors.csv", delimiter=',')
     for index in range(n_dim):
         try:
-            name_ = str(index) + "th eigenface.jpeg"
+            name_ = str(index) + "th eigenface.bmp"
             reconstruct_with_normalization(eigen_vectors[index],
-                                                 scaling=scaling, scaling_factor=scale, name_of_file=name_)
+                                           scaling=scaling, scaling_factor=scaling_factor, name_of_file=name_)
         except IndexError:
             logging.warning("[" + str(index) + "] index of reconstruction is greater than dimension of eigenvectors")
 
@@ -47,6 +47,7 @@ def create_covariance_matrix(rootdir_, scale_, r_):
     cov /= len(means)
     # THIS IS IMPORTANT!!!
     w, v = scipy.sparse.linalg.eigsh(cov, 100)  # we take first 100 biggest eigvalues with Lanczos algorithm
+    # w, v = numpy.linalg.eigh(cov)
 
     # DO NOT DELETE THIS LINE!!!!
     idx = w.argsort()[::-1]
@@ -93,5 +94,5 @@ def reconstruct_to_n_degrees(degree_of_reconstruct, index_of_image_to_reconstruc
     original_im = load_data(eigen_files[index_of_image_to_reconstruct], scaling, scaling_factor)
     reconstruction = numpy.zeros(int(36000 * scaling_factor ** 2))
     for i in range(degree_of_reconstruct):
-        reconstruction = reconstruction + numpy.multiply(eigen_vectors[i], original_im) * eigen_vectors[i]
+        reconstruction = reconstruction + numpy.dot(eigen_vectors[i], original_im.T) * eigen_vectors[i]
     return reconstruction + means[index_of_image_to_reconstruct]
