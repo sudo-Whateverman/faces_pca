@@ -11,13 +11,16 @@ def load_data(filename_, scaling, scaling_factor):
     return data_arr_.flatten()
 
 
-def reconstruct_with_normalization(image, scaling, scaling_factor, name_of_file="temp"):
+def reconstruct_with_normalization(image, scaling, scaling_factor, name_of_file="temp", normalize=True):
+
     # reconstruct from array
     if scaling:
         im_ = Image.fromarray(image.reshape((int(200 * scaling_factor), int(180 * scaling_factor))))
     else:
         im_ = Image.fromarray(numpy.uint8(image.reshape(200, 180)))
-    im_ = ImageOps.autocontrast(im_, cutoff=0, ignore=None)
+
     if im_.mode != 'RGB':
         im_ = im_.convert('RGB')
+    im_ = ImageOps.autocontrast(im_, cutoff=0, ignore=None)
     im_.save(name_of_file)
+    return im_

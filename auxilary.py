@@ -15,7 +15,7 @@ def eigen_face_construct(n_dim, scaling, scaling_factor):
     for index in range(n_dim):
         try:
             name_ = str(index) + "th eigenface.bmp"
-            reconstruct_with_normalization(eigen_vectors[index],
+            reconstruct_with_normalization(eigen_vectors[index] * len(eigen_vectors[index]),
                                            scaling=scaling, scaling_factor=scaling_factor, name_of_file=name_)
         except IndexError:
             logging.warning("[" + str(index) + "] index of reconstruction is greater than dimension of eigenvectors")
@@ -31,13 +31,19 @@ def traverse_faces(rootdir_, scaling, scaling_factor):
                 im_array = load_data(os.path.join(dirName, fname), scaling, scaling_factor)
                 filenames.append(os.path.join(dirName, fname))
                 means.append(im_array.mean())
-                im_array = im_array - im_array.mean()  # center the data around 0
+                # im_array = im_array - im_array.mean()  # center the data around 0
                 if im_array.ndim < 2:
                     im_array = array(im_array, copy=False, subok=True, ndmin=2).T
                     arrays.append(im_array)
             except OSError:
                 logging.warning("failed to load face:" + os.path.join(dirName, fname))
-    return numpy.concatenate(arrays, 1), means, filenames
+    mat = numpy.concatenate(arrays, 1)
+    means = mat.mean(axis=1)
+    mat = numpy.subtract(mat.T, means.T).T
+    numpy.savetxt("matrix.csv", mat, delimiter=",")
+    numpy.savetxt("means.csv", means, delimiter=",")
+
+    return mat, means.T, filenames
 
 
 def create_covariance_matrix(rootdir_, scale_, r_):
@@ -46,7 +52,7 @@ def create_covariance_matrix(rootdir_, scale_, r_):
     cov = scipy.linalg.blas.dgemm(alpha=1.0, a=mat, b=mat, trans_b=True)
     cov /= len(means)
     # THIS IS IMPORTANT!!!
-    w, v = scipy.sparse.linalg.eigsh(cov, 100)  # we take first 100 biggest eigvalues with Lanczos algorithm
+    w, v = scipy.sparse.linalg.eigsh(cov, 1000)  # we take first 1000 biggest eigvalues with Lanczos algorithm
     # w, v = numpy.linalg.eigh(cov)
 
     # DO NOT DELETE THIS LINE!!!!
@@ -56,9 +62,7 @@ def create_covariance_matrix(rootdir_, scale_, r_):
     # DO NOT DELETE THIS LINE!!!!
 
     # save artifacts
-    numpy.savetxt("matrix.csv", mat, delimiter=",")
     numpy.savetxt("covariance.csv", cov, delimiter=",")
-    numpy.savetxt("means.csv", means, delimiter=",")
     numpy.savetxt("eigenvalues.csv", w, delimiter=",")
     numpy.savetxt("eigenvectors.csv", v.T, delimiter=",")
     with open("files.txt", "wb") as fp:  # Pickling
@@ -94,5 +98,12 @@ def reconstruct_to_n_degrees(degree_of_reconstruct, index_of_image_to_reconstruc
     original_im = load_data(eigen_files[index_of_image_to_reconstruct], scaling, scaling_factor)
     reconstruction = numpy.zeros(int(36000 * scaling_factor ** 2))
     for i in range(degree_of_reconstruct):
-        reconstruction = reconstruction + numpy.dot(eigen_vectors[i], original_im.T) * eigen_vectors[i]
-    return reconstruction + means[index_of_image_to_reconstruct]
+        coeff = numpy.dot(eigen_vectors[i].T, original_im)
+        reconstruction += coeff * len(original_im) * eigen_vectors[i]
+    # reconstruction += means
+    return reconstruction
+
+
+def average_face_reconstruct(scaling, scaling_factor):
+    average_face = numpy.loadtxt("means.csv", delimiter=',')
+    reconstruct_with_normalization(average_face, scaling, scaling_factor, "averageface.jpg")
